@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ABU BAKAR AI</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#202123;height:100vh;display:flex;overflow:hidden}
+.sidebar{width:260px;background:#f7f7f8;border-right:1px solid #ddd;display:flex;flex-direction:column;padding:12px}
+.brand{font-size:20px;font-weight:700;padding:12px 10px 18px;color:#17834b}
+.new{border:1px solid #ccc;background:#fff;border-radius:9px;padding:11px;cursor:pointer;font-size:14px}.new:hover{background:#eee}
+.history{margin-top:18px;overflow:auto;flex:1}.history div{padding:9px;border-radius:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#555;font-size:14px}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}.top{height:58px;border-bottom:1px solid #eee;display:flex;align-items:center;padding:0 18px;font-weight:700}.top span{color:#17834b}
+.chat{flex:1;overflow:auto;padding:25px 16px 130px}.msg{max-width:850px;margin:0 auto 25px;display:flex;gap:13px;line-height:1.65}.avatar{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex:none;font-size:15px}.user .avatar{background:#ddd}.ai .avatar{background:#17834b;color:white}.bubble{white-space:pre-wrap;word-break:break-word;flex:1}.welcome{max-width:700px;margin:12vh auto;text-align:center}.welcome h1{font-size:34px;margin-bottom:8px}.welcome p{color:#777}.composer{position:fixed;bottom:0;left:260px;right:0;padding:15px;background:linear-gradient(transparent,#fff 35%)}form{max-width:850px;margin:auto;display:flex;gap:8px;border:1px solid #ccc;border-radius:14px;padding:8px;background:white;box-shadow:0 2px 12px #00000012}textarea{flex:1;border:0;outline:0;resize:none;font:inherit;padding:8px;max-height:130px}button.send{border:0;background:#17834b;color:white;border-radius:9px;padding:0 17px;cursor:pointer;font-weight:700}.hint{text-align:center;color:#888;font-size:11px;margin-top:7px}.typing{color:#777}@media(max-width:700px){.sidebar{display:none}.composer{left:0}.top{padding-left:14px}.welcome h1{font-size:28px}.chat{padding-top:18px}.msg{margin-bottom:20px}}
+</style>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="brand">ABU BAKAR AI</div>
+  <button class="new" onclick="newChat()">＋ New chat</button>
+  <div class="history" id="history"></div>
+</aside>
+<main class="main">
+  <header class="top">ABU BAKAR <span>&nbsp;AI</span></header>
+  <section class="chat" id="chat">
+    <div class="welcome" id="welcome"><h1>How can I help you?</h1><p>Ask ABU BAKAR AI anything.</p></div>
+  </section>
+  <div class="composer">
+    <form id="form">
+      <textarea id="input" rows="1" placeholder="Message ABU BAKAR AI..." autocomplete="off"></textarea>
+      <button class="send" type="submit">Send</button>
+    </form>
+    <div class="hint">ABU BAKAR AI can make mistakes. Check important information.</div>
+  </div>
+</main>
+<script>
+const chat=document.getElementById('chat'), input=document.getElementById('input'), form=document.getElementById('form');
+let messages=JSON.parse(localStorage.getItem('abu_bakar_messages')||'[]');
+function save(){localStorage.setItem('abu_bakar_messages',JSON.stringify(messages))}
+function esc(s){return s}
+function add(role,text){
+ const welcome=document.getElementById('welcome'); if(welcome) welcome.remove();
+ const el=document.createElement('div'); el.className='msg '+role;
+ el.innerHTML='<div class="avatar">'+(role==='user'?'You':'AI')+'</div><div class="bubble"></div>';
+ el.querySelector('.bubble').textContent=text; chat.appendChild(el); chat.scrollTop=chat.scrollHeight;
+}
+function render(){chat.innerHTML=''; if(!messages.length){chat.innerHTML='<div class="welcome" id="welcome"><h1>How can I help you?</h1><p>Ask ABU BAKAR AI anything.</p></div>';return} messages.forEach(m=>add(m.role,m.content))}
+function newChat(){messages=[];save();render()}
+form.addEventListener('submit',async e=>{
+ e.preventDefault(); const text=input.value.trim(); if(!text)return;
+ input.value=''; input.style.height='auto'; messages.push({role:'user',content:text}); save(); add('user',text);
+ const wait=document.createElement('div'); wait.className='msg ai'; wait.innerHTML='<div class="avatar">AI</div><div class="bubble typing">Thinking…</div>'; chat.appendChild(wait); chat.scrollTop=chat.scrollHeight;
+ try{
+   const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages})});
+   const data=await r.json(); wait.remove();
+   if(!r.ok) throw new Error(data.error||'Request failed');
+   messages.push({role:'assistant',content:data.reply}); save(); add('ai',data.reply);
+ }catch(err){wait.remove(); add('ai','Error: '+err.message+'\n\nMake sure the server is running and your API key is configured.');}
+});
+input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,130)+'px'});
+input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit()}});
+render();
+</script>
+</body>
+</html>
